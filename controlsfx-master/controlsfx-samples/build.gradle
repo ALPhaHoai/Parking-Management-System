@@ -1,0 +1,86 @@
+import org.apache.tools.ant.filters.*
+apply plugin: 'application'
+apply from: '../javafx.plugin'
+
+applicationName = 'FXSampler'
+mainClassName = fxsampler_mainClass
+
+configurations {
+    jdk
+}
+
+sourceSets {
+    main {
+        compileClasspath += configurations.jdk
+    }
+}
+
+dependencies {
+    compile group + ':' + fxsampler_name +':'  + fxsampler_version
+    compile group + ':' + controlsfx_name + ':' + version
+
+    try {
+        jdk files(jfxrtJar)
+    } catch (MissingPropertyException pne) {
+        // javafx plugin will provide in this case
+    }
+}
+
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'ControlsFX-Samples', 'Implementation-Version': project.version
+    }
+    from sourceSets.main.allJava
+}
+
+// enumerate the samples at build time
+task enumerateSamples() {
+    doLast {
+        def samplesList = []
+        sourceSets.main.java.visit {
+            // could be improved:  we could load the class and check the hierarchy
+            if (!it.directory && it.file.text.contains(' extends SampleBase ') && it.path.contains("samples")) {
+                samplesList += it.path
+            }
+        }
+        println samplesList
+        File outputFile = new File(sourceSets.main.output.resourcesDir, 'fxsampler/samples/samples.txt')
+        outputFile.parentFile.mkdirs()
+        outputFile.text = samplesList.join('\n')
+    }
+}
+
+processResources.dependsOn(enumerateSamples)
+gradle.taskGraph.whenReady {
+    enumerateSamples.enabled = gradle.taskGraph.hasTask(":$project.name:jfxDeploy")
+}
+
+jfxJar {
+    classpath = files(
+            (project.sourceSets.main.compileClasspath .files
+                    - project.configurations['providedCompile'].files.findAll {it.file})
+                    + jar.archivePath
+    )
+}
+
+javafx {
+    try {
+        jfxrtJar = ext.jfxrtJar
+    } catch (MissingPropertyException pne) {
+        // ignore
+    }
+
+    appID 'HelloControlsFX'
+    appName 'Hello ControlsFX'
+    mainClass fxsampler_mainClass
+
+    javaRuntime = '<NO RUNTIME>' // for now don't bundle a VM
+
+    // deploy/info attributes
+    category = 'JavaFX Demos'
+    copyright = 'Copyright (c) 2013 Jonathan Giles and others'
+    description = 'This is a sample of all of the ControlsFX controls'
+    licenseType = '3 clause BSD'
+    vendor = 'FX Experience'
+}

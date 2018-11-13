@@ -1,0 +1,12 @@
+syntax: glob
+*.class
+*.iml
+.DS_Store
+build/*
+.idea/*
+.gradle/*
+.nb-gradle/*
+bin/*
+doc/*
+.settings/*
+
